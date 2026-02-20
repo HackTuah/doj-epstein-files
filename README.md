@@ -1,84 +1,88 @@
-# DOJ Epstein Archive – "No Images Produced" Dataset Resolver
+# DOJ Epstein Archive – "No Images Produced" Dataset
 
 ## Overview
 
-This repository documents the collection and technical analysis of publicly released DOJ Epstein archive materials, specifically entries returned from the search query:
+This repository documents technical analysis of a subset of publicly released DOJ Epstein archive materials.
+
+The focus is on files returned from the search query:
 
     "no images produced"
 
-The Department of Justice archive frequently serves files labeled with a `.pdf` extension, even when the underlying file type is not a PDF. In many cases, the actual file may be:
+The DOJ archive frequently serves URLs labeled with a `.pdf` extension, even when the underlying file type is not a PDF. In many cases, the actual content may be:
 
 - Video (e.g., `.mov`, `.mp4`)
 - Audio (e.g., `.m4a`, `.mp3`, `.ogg`, `.opus`)
 - Image (e.g., `.jpg`, `.png`)
 - Archive (e.g., `.zip`)
-- Or another media format
+- Or other media formats
 
-The purpose of this project is to identify and resolve the true file type for each entry in this subset of the archive.
-
----
-
-## Objectives
-
-1. Collect all DOJ archive links returned from the search query "no images produced".
-2. Normalize and store these links as a base dataset.
-3. Programmatically determine the actual file type for each entry using:
-   - HTTP content-type inspection
-   - Byte-level magic signature detection
-   - Controlled extension probing
-4. Produce a clean dataset mapping each base file ID to its correct extension.
+This project attempts to programmatically determine the true file type of each entry.
 
 ---
 
-## Base Dataset
+## Current Status
 
-The initial dataset of URLs extracted from DOJ search results is provided here:
+This is a work-in-progress dataset.
 
-    no_images_produced_links.csv
+- The base dataset has been collected.
+- Extension resolution is partially complete.
+- The current `resolved.partial.csv` reflects staged runs.
+- Some entries remain unresolved due to site rate limiting.
+- Some entries may require additional probing passes.
 
-This file contains the raw URLs exactly as published by the DOJ site.  
-Most entries end in `.pdf`, regardless of the true underlying file type.
-
-This dataset serves as the baseline for extension resolution.
+The CSV currently published is intentionally raw and reflects the actual state of resolution at the time of upload.
 
 ---
 
-## Output Dataset
+## Files in This Repository
 
-The resolver produces:
+### `no_images_produced_links.csv`
 
-    resolved.csv
+The baseline dataset extracted directly from DOJ search results.
+
+These are the raw URLs as published by the DOJ site.  
+Most entries end in `.pdf`, regardless of true underlying file type.
+
+This file represents the full base set currently under analysis.
+
+---
+
+### `resolved.partial.csv`
+
+A staged resolution dataset.
 
 This file includes:
 
-- base_id
+- `base_id`
 - original URL
-- resolved URL
+- base URL (extension stripped)
+- resolution status
+- resolved URL (if found)
 - detected extension
-- detected file type (via magic bytes)
+- detected file type (via magic byte inspection)
 - HTTP content-type
 - resolution notes
 
-Resolution is performed in staged runs due to rate limiting enforced by the DOJ site.
+Because the DOJ site enforces aggressive rate limiting and anti-bot controls, resolution must be performed in batches. As a result:
+
+- Some rows are complete.
+- Some rows are marked as rate-limited.
+- Some rows remain unresolved.
+
+This dataset will be updated incrementally as additional passes are completed.
 
 ---
 
-## Technical Approach
+## Technical Methodology
 
-The resolver implements:
+Resolution is performed using:
 
-- Playwright-based session handling to pass age verification and anti-bot controls
-- HTTP Range requests (first ~96KB) for efficient byte inspection
-- Magic byte detection for common media signatures, including:
-  - MP4 / MOV (`ftyp`)
-  - M4A
-  - OGG / Opus
-  - JPEG / PNG / GIF
-  - ZIP / RAR / 7z
-  - WAV / FLAC
-  - PDF
+- Playwright-based session handling (to pass age verification and bot controls)
+- HTTP Range requests to retrieve only initial bytes
+- Magic byte inspection for file-type detection
+- Content-Type validation
 - Tiered extension probing (media-first strategy)
-- HTML/gate detection to filter out false-positive 200 responses
+- HTML/gate detection to filter false-positive 200 responses
 - Automatic rate-limit detection and cooldown logic
 - Resume support via partial CSV
 
@@ -86,19 +90,20 @@ The DOJ archive frequently returns HTTP 200 responses for:
 
 - Age verification redirects
 - HTML "Page Not Found" templates
-- Bot-detection responses
+- Bot-detection pages
 
-As a result, simple extension checks are insufficient.  
-This resolver relies on byte-level validation to confirm actual file types.
+Therefore, naive extension checks are insufficient.  
+Byte-level inspection is required to determine actual file type.
 
 ---
 
-## Operational Constraints
+## Limitations
 
-- The DOJ site enforces aggressive rate limiting.
+- The DOJ site enforces rate limiting.
 - Session cookies are IP-bound.
-- VPN or IP changes invalidate stored session state.
-- Headless vs non-headless browser modes may affect fingerprinting behavior.
+- VPN/IP changes invalidate session state.
+- Headless browser fingerprinting may affect stability.
+- Some entries may only exist as placeholder documents.
 
 Resolution runs are staged to avoid triggering perimeter controls.
 
@@ -109,4 +114,4 @@ Resolution runs are staged to avoid triggering perimeter controls.
 All data referenced in this repository originates from publicly released Department of Justice materials.
 
 This repository does not host, modify, or redistribute source files.  
-It documents analysis of publicly accessible URLs and file-type resolution methodology.
+It documents technical analysis and file-type resolution of publicly accessible URLs.
